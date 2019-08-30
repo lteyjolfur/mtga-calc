@@ -57,6 +57,8 @@ def in_booster(card):
 
 
 playerRares = 0
+playerTotalRares = 0
+cardList = {}
 for key, value in collection.items():
     try:
         tempCard = all_mtga_cards.find_one(key)
@@ -66,9 +68,11 @@ for key, value in collection.items():
             validCards = validCards + 1
             cardCount += value
             set_sort(sets, tempCard, value)
-            if tempCard.rarity == "Rare" or tempCard.rarity == "Mythic Rare":
+            cardList[key] = value
+            if tempCard.rarity == "Rare":
                 set_sort(rares, tempCard, value)
                 playerRares = playerRares + 1
+                playerTotalRares = playerTotalRares + value
     except ValueError as e:
         pass
 cards = 0
@@ -81,7 +85,7 @@ for i in all_mtga_cards.cards:
         if i.rarity != "Basic":
             set_sort(cardsInSet, i, 4)
         if i.set != 'ANA':
-            if (i.rarity == "Rare" or i.rarity == "Mythic Rare") and in_booster(i):
+            if i.rarity == "Rare" and in_booster(i):
                 set_sort(raresInSet, i, 4)
                 totalRares = totalRares + 1
 
@@ -144,6 +148,32 @@ def make_table(table_name, column1, player_cards, complete_cards, index):
                 num1 = player_cards[i][index]
                 num2 = complete_cards[i][index]
                 _tableColumns.append([num1, num2, get_percentage(num1, num2)])
+            #print("flag")
+            # print(_tableColumns[_iterator])
+            newTable.add_column(i, _tableColumns[_iterator])
+        except KeyError as error:
+            print(error)
+        _iterator = _iterator + 1
+    print(newTable)
+
+
+def make_table_with_title(table_title, column0, column1, dict1, dict2):
+    newTable = PrettyTable()
+    _tableColumns = [column0, column1]
+    _iterator = 0
+    for i in table_title:
+        print("iterator is = " + str(_iterator))
+        try:
+            if i == table_title[0] or i == table_title[1]:
+                pass
+            else:
+                num1 = dict1[i][1]
+                num2 = dict2[i][1]
+                _tableColumns.append([num1, num2, get_percentage(num1, num2)])
+            # print("flag_make")
+            #print(_tableColumns)
+
+            # print(_tableColumns[_iterator])
             newTable.add_column(i, _tableColumns[_iterator])
         except KeyError as error:
             print(error)
@@ -152,20 +182,56 @@ def make_table(table_name, column1, player_cards, complete_cards, index):
 
 
 tableTitles.remove('ANA')
-make_table("Rares Unique", [playerRares, totalRares, get_percentage(playerRares, totalRares)], raresInSet, cardsInSet, 0)
-make_table("Rares Total ", [playerRares, totalRares * 4, get_percentage(playerRares, totalRares * 4)], raresInSet,
-           cardsInSet, 1)
+make_table("Rares Unique", [playerRares, totalRares, get_percentage(playerRares, totalRares)], rares, raresInSet,
+           0)
+make_table("Rares Total ", [playerTotalRares, totalRares * 4, get_percentage(playerTotalRares, totalRares * 4)], rares,
+           raresInSet, 1)
 
 wishList = {}
 for i in deckLists:
     if i["name"] == "$WishList":
-        print(i["mainDeck"])
+        # print(i["mainDeck"])
         iterator = 0
-        while iterator != len(i["mainDeck"]):
-            wishList[i["mainDeck"][iterator]] = i["mainDeck"][iterator+1]
+        while iterator < len(i["mainDeck"]):
+            wishList[str(i["mainDeck"][iterator])] = i["mainDeck"][iterator+1]
             iterator = iterator + 2
 # var = input("Press enter to quit")
-for i in collection:
-    pass
+# print(wishList)
+wishListDuds = []
+wishCards = 0
+for key in wishList:
+    if key in cardList:
+        if wishList[key] <= cardList[key]:
+            wishListDuds.append(key)
+        else:
+            wishList[key] = wishList[key] - cardList[key]
+            wishCards = wishCards + wishList[key]
+for i in wishListDuds:
+    print(all_mtga_cards.find_one(i))
+    wishList.pop(i)
+#print(wishList)
 
-print(wishList)
+wishListSet = {}
+
+
+for i in wishList:
+    set_sort(wishListSet, all_mtga_cards.find_one(i), wishList[i])
+print(wishListSet)
+tableTitlesRares = ["Rare Boosters", "All"]
+for i in tableTitles:
+    if i in wishListSet:
+        tableTitlesRares.append(i)
+
+print(tableTitles)
+print(tableTitlesRares)
+missingRaresSet = {}
+for i in wishListSet:
+    missingRaresSet[i] = [0, raresInSet[i][1] - rares[i][1]]
+missingRares = totalRares * 4 - playerTotalRares
+col0 = ["Wanted", "Total missing", "Percentage"]
+col1 = [wishCards, missingRares, get_percentage(wishCards, missingRares)]
+make_table_with_title(tableTitlesRares, col0, col1, wishListSet, missingRaresSet)
+
+# TODO: use statistics to determine percentage
+# TODO: fix makeTable
+# TODO: Autoupdate for cards in set?
