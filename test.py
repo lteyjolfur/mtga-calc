@@ -162,7 +162,7 @@ def make_table_with_title(table_title, column0, column1, dict1, dict2):
     _tableColumns = [column0, column1]
     _iterator = 0
     for i in table_title:
-        print("iterator is = " + str(_iterator))
+       # print("iterator is = " + str(_iterator))
         try:
             if i == table_title[0] or i == table_title[1]:
                 pass
@@ -214,13 +214,17 @@ for i in wishListDuds:
 wishListSet = {}
 
 
+
 for i in wishList:
-    set_sort(wishListSet, all_mtga_cards.find_one(i), wishList[i])
+    WishListSetCards = set_sort(wishListSet, all_mtga_cards.find_one(i), wishList[i])
 print(wishListSet)
 tableTitlesRares = ["Rare Boosters", "All"]
+tableTitlesWish = []
 for i in tableTitles:
     if i in wishListSet:
         tableTitlesRares.append(i)
+
+
 
 print(tableTitles)
 print(tableTitlesRares)
@@ -231,6 +235,81 @@ missingRares = totalRares * 4 - playerTotalRares
 col0 = ["Wanted", "Total missing", "Percentage"]
 col1 = [wishCards, missingRares, get_percentage(wishCards, missingRares)]
 make_table_with_title(tableTitlesRares, col0, col1, wishListSet, missingRaresSet)
+
+
+class Column:
+    title = ""
+    wantedRares = 0
+    totalRares = 0
+    wantedMythics = 0
+    totalMythics = 0
+    percentage = 0
+
+    def __init__(self, _title, _wanted_rares, _total_rares, _wanted_mythics, _total_mythics):
+        self.title = _title
+        self.wantedRares = _wanted_rares
+        self.totalRares = _total_rares
+        self.wantedMythics = _wanted_mythics
+        self.totalMythics = _total_mythics
+
+    def get_title(self):
+        return self.title
+
+    def get_column(self):
+        return[self.wantedRares, self.totalRares, self.wantedMythics, self.totalMythics, self.percentage]
+
+    def add_wanted_rare(self):
+        self.wantedRares = self.wantedRares
+
+    def add_wanted_mythic(self):
+        self.wantedMythics = self.wantedMythics+1
+
+
+class Table:
+    table = PrettyTable()
+    TitleColumn = Column("Booster %", "Wanted Rares", "Total Rares", "Wanted Mythics", "Total Mythics")
+    TitleColumn.percentage = "Percent"
+    TotalColumn = Column("All", wishCards, missingRares, "N/A", "N/A")
+    SetColumns = []
+    prepared = False
+
+    def __init__(self):
+        pass
+
+    def prepare_table(self):
+        if not self.prepared:
+            self.prepared = True
+            self.table.add_column(self.TitleColumn.get_title(), self.TitleColumn.get_column())
+            self.table.add_column(self.TotalColumn.get_title(), self.TotalColumn.get_column())
+
+
+
+    def print_table(self):
+        if self.prepared:
+            print(self.table)
+        else:
+            print("ERROR table not prepared")
+
+print("#####################")
+BoosterTable = Table()
+BoosterTable.prepare_table()
+BoosterTable.print_table()
+print("#####################")
+
+tableColumns = []
+for i in tableTitlesRares:
+    tableColumns.append(Column(i, 1, 2, 3, 4))
+
+for i in wishList:
+    card = all_mtga_cards.find_one(i)
+    wishList[i] = [all_mtga_cards.find_one(i), wishList[i]]
+
+newTable = PrettyTable()
+for i in tableColumns:
+    newTable.add_column(i.get_title(), i.get_column())
+print(newTable)
+
+
 
 # TODO: use statistics to determine percentage
 # TODO: fix makeTable
