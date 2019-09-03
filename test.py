@@ -51,8 +51,9 @@ def set_sort(dictionary, card, amount):
 
 
 def in_booster(card):
-    if card.set_number < setMaxNumber[card.set]:
-        return True
+    if card.set != "ANA":
+        if card.set_number < setMaxNumber[card.set]:
+            return True
     return False
 
 
@@ -78,7 +79,9 @@ for key, value in collection.items():
 cards = 0
 cardsInSet = {}
 raresInSet = {}
+mythicsInSet = {}
 totalRares = 0
+totalMythics = 0
 for i in all_mtga_cards.cards:
     if i.collectible is True:
         cards = cards + 1
@@ -88,6 +91,11 @@ for i in all_mtga_cards.cards:
             if i.rarity == "Rare" and in_booster(i):
                 set_sort(raresInSet, i, 4)
                 totalRares = totalRares + 1
+            elif i.rarity == "Mythic Rare" and in_booster(i):
+                set_sort(mythicsInSet, i, 4)
+
+print("###########################", raresInSet)
+print("###########################", mythicsInSet)
 
 cards = cards - 50
 
@@ -129,6 +137,8 @@ for i in tableTitles:
     iterator = iterator + 1
 print(tTotal)
 
+def format_percentage(num):
+    return "{0:.0%}".format(num)
 
 def get_percentage(num1, num2):
     return "{0:.0%}".format(num1 / num2)
@@ -186,7 +196,7 @@ make_table("Rares Unique", [playerRares, totalRares, get_percentage(playerRares,
            0)
 make_table("Rares Total ", [playerTotalRares, totalRares * 4, get_percentage(playerTotalRares, totalRares * 4)], rares,
            raresInSet, 1)
-
+# Gets The wishlist deck
 wishList = {}
 for i in deckLists:
     if i["name"] == "$WishList":
@@ -213,21 +223,95 @@ for i in wishListDuds:
 
 wishListSet = {}
 
+playerRareMythics = {}
+for key, value in collection.items():
+    try:
+        tempCard = all_mtga_cards.find_one(key)
+        if tempCard.rarity != "Basic":
+            # validCards = validCards + 1
+            # cardCount += value
+            # set_sort(sets, tempCard, value)
+            # cardList[key] = value
+            if tempCard.rarity == "Rare" or tempCard.rarity == "Mythic Rare" and in_booster(tempCard):
+                # playerRares = playerRares + 1
+                # playerTotalRares = playerTotalRares + value
+                playerRareMythics[tempCard.mtga_id] = value
+    except ValueError as e:
+        pass
+
+rareMythicsList = {}
+for i in all_mtga_cards.cards:
+    if i.collectible is True and in_booster(i) is True:
+        cards = cards + 1
+        if i.set != 'ANA':
+            if i.rarity == "Rare" or i.rarity == "Mythic Rare" and in_booster(i):
+                rareMythicsList[i.mtga_id] = 4
+
+print(rareMythicsList)
+
+
+class CCardListData:
+
+    def set_arrange(self,card,dictionary, amount):
+        if card.set not in dictionary:
+            dictionary[card.set] = amount
+        else:
+            dictionary[card.set] = dictionary[card.set] + amount
+
+    def sort_data(self):
+        for i in self.wishList:
+            card = all_mtga_cards.find_one(i)
+            if card.rarity == "Rare":
+                self.rares = self.rares + self.wishList[i]
+                self.set_arrange(card, self.raresDict, self.wishList[i])
+            elif card.rarity == "Mythic Rare":
+                self.mythics = self.mythics + self.wishList[i]
+                self.set_arrange(card, self.mythicsDict, self.wishList[i])
+
+    def __init__(self, wish_list):
+        self.raresDict = {}
+        self.mythicsDict = {}
+        self.rares = 0
+        self.mythics = 0
+        self.wishList = wish_list
+        self.sort_data()
+
+
+WishListData = CCardListData(wishList)
+CardData = CCardListData(rareMythicsList)
+PlayerCardData = CCardListData(playerRareMythics)
+
+for i in rareMythicsList:
+    if i in playerRareMythics:
+        rareMythicsList[i] = rareMythicsList[i] - playerRareMythics[i]
+
+MissingCardData = CCardListData(rareMythicsList)
+
+
+
+
+print("################################################")
+print(WishListData.raresDict)
+print(CardData.raresDict)
+
 
 
 for i in wishList:
-    WishListSetCards = set_sort(wishListSet, all_mtga_cards.find_one(i), wishList[i])
-print(wishListSet)
+    set_sort(wishListSet, all_mtga_cards.find_one(i), wishList[i])
+    card = all_mtga_cards.find_one(i)
+
+#print(wishListSet)
 tableTitlesRares = ["Rare Boosters", "All"]
 tableTitlesWish = []
 for i in tableTitles:
     if i in wishListSet:
         tableTitlesRares.append(i)
+        tableTitlesWish.append(i)
 
 
 
-print(tableTitles)
-print(tableTitlesRares)
+#print(tableTitles)
+#print(tableTitlesRares)
 missingRaresSet = {}
 for i in wishListSet:
     missingRaresSet[i] = [0, raresInSet[i][1] - rares[i][1]]
@@ -238,12 +322,6 @@ make_table_with_title(tableTitlesRares, col0, col1, wishListSet, missingRaresSet
 
 
 class Column:
-    title = ""
-    wantedRares = 0
-    totalRares = 0
-    wantedMythics = 0
-    totalMythics = 0
-    percentage = 0
 
     def __init__(self, _title, _wanted_rares, _total_rares, _wanted_mythics, _total_mythics):
         self.title = _title
@@ -251,6 +329,13 @@ class Column:
         self.totalRares = _total_rares
         self.wantedMythics = _wanted_mythics
         self.totalMythics = _total_mythics
+        self.percentage = 0
+        try:
+            self.percentage = format_percentage((_wanted_rares/_total_rares)*0.88
+                                                + (_wanted_mythics/_total_mythics) * 0.12)
+        except TypeError:
+            pass
+
 
     def get_title(self):
         return self.title
@@ -258,31 +343,36 @@ class Column:
     def get_column(self):
         return[self.wantedRares, self.totalRares, self.wantedMythics, self.totalMythics, self.percentage]
 
-    def add_wanted_rare(self):
-        self.wantedRares = self.wantedRares
-
-    def add_wanted_mythic(self):
-        self.wantedMythics = self.wantedMythics+1
-
 
 class Table:
     table = PrettyTable()
-    TitleColumn = Column("Booster %", "Wanted Rares", "Total Rares", "Wanted Mythics", "Total Mythics")
+    TitleColumn = Column("Booster %", "Wanted Rares", "Missing Rares", "Wanted Mythics",  "Missing Mythics")
     TitleColumn.percentage = "Percent"
-    TotalColumn = Column("All", wishCards, missingRares, "N/A", "N/A")
+    TotalColumn = Column("All", wishCards, missingRares, "Inserted Later", "Inserted Later")
     SetColumns = []
     prepared = False
 
-    def __init__(self):
-        pass
+    def __init__(self, set_list, wish_list_data, missing_data):
+        #print(set_list)
+        for i in set_list:
+            self.SetColumns.append(Column(i, wish_list_data.raresDict[i], missing_data.raresDict[i],
+                                          wish_list_data.mythicsDict[i], missing_data.mythicsDict[i]))
+        self.TotalColumn.mythics = wish_list_data.mythics
+        self.TotalColumn.wantedMythics = wish_list_data.mythics
+        self.TotalColumn.totalMythics = missing_data.mythics
 
     def prepare_table(self):
         if not self.prepared:
             self.prepared = True
             self.table.add_column(self.TitleColumn.get_title(), self.TitleColumn.get_column())
             self.table.add_column(self.TotalColumn.get_title(), self.TotalColumn.get_column())
+            iterator = 0
+            while iterator < len(self.SetColumns):
+                self.table.add_column(self.SetColumns[iterator].get_title(), self.SetColumns[iterator].get_column())
+                iterator = iterator + 1
 
-
+        else:
+            print("ERROR - already Prepared")
 
     def print_table(self):
         if self.prepared:
@@ -290,11 +380,12 @@ class Table:
         else:
             print("ERROR table not prepared")
 
-print("#####################")
-BoosterTable = Table()
+
+BoosterTable = Table(tableTitlesWish, WishListData, MissingCardData)
 BoosterTable.prepare_table()
+
 BoosterTable.print_table()
-print("#####################")
+
 
 tableColumns = []
 for i in tableTitlesRares:
@@ -304,10 +395,10 @@ for i in wishList:
     card = all_mtga_cards.find_one(i)
     wishList[i] = [all_mtga_cards.find_one(i), wishList[i]]
 
-newTable = PrettyTable()
-for i in tableColumns:
-    newTable.add_column(i.get_title(), i.get_column())
-print(newTable)
+#newTable = PrettyTable()
+#for i in tableColumns:
+#    newTable.add_column(i.get_title(), i.get_column())
+#print(newTable)
 
 
 
